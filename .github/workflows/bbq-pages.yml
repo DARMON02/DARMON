@@ -35,8 +35,8 @@ jobs:
         run: |
           rm -rf _site
           mkdir -p _site/admin
-          cp bbq-burger-customer/index.html _site/index.html
-          cp bbq-burger-admin/index.html _site/admin/index.html
+          cp -a bbq-burger-customer/. _site/
+          cp -a bbq-burger-admin/. _site/admin/
       - name: Upload Mini Apps artifact
         uses: actions/upload-pages-artifact@v4
         with:
