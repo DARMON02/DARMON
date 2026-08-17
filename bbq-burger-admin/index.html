@@ -1,1 +1,177 @@
-<!doctype html><html lang="uz"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><script src="https://telegram.org/js/telegram-web-app.js"></script><title>BBQ Burger Admin</title><style>:root{--o:#ff6500;--d:#171717;--bg:#f4f4f4;--mut:#777;--red:#c62828;--green:#16813c}*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Arial,sans-serif;color:#202020}.wrap{max-width:520px;margin:auto;padding:14px 14px 90px}.top{background:var(--d);color:#fff;border-radius:22px;padding:18px}.top h1{font-size:20px;margin:0 0 4px}.sub,.muted{font-size:12px;color:var(--mut)}.top .sub{color:#bbb}.notice{margin:12px 0;padding:12px;border-radius:14px;background:#fff3cd}.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin:12px 0}.card,.item,.order{background:#fff;border-radius:17px;padding:13px;box-shadow:0 3px 14px #0000000c}.num{font-size:23px;font-weight:800}.tabs,.filters{display:flex;gap:7px;overflow:auto;padding:2px 0;margin:12px 0}.tabs button,.filters button{background:#fff;white-space:nowrap}.tabs button.active,.filters button.active,.primary{background:var(--o);color:#fff}button{border:0;border-radius:11px;padding:10px 12px;font-weight:700;cursor:pointer}.toolbar{display:flex;justify-content:space-between;align-items:center;margin:10px 0}.item{display:flex;justify-content:space-between;gap:8px;margin:8px 0}.actions{display:flex;gap:5px}.actions button{padding:8px;background:#eee}.order{margin:9px 0}.order-head{display:flex;justify-content:space-between;gap:8px}.status{font-size:11px;font-weight:800;border-radius:999px;padding:5px 8px;background:#eee}.status.new{background:#fff1c7}.status.accepted{background:#e5f3ff}.status.preparing{background:#fff0df}.status.courier{background:#efe7ff}.status.delivered{background:#e5f6e9;color:var(--green)}.status.cancelled{background:#fde7e7;color:var(--red)}.order-lines{margin:9px 0 4px;font-size:13px;line-height:1.55}.order-items{background:#f7f7f7;border-radius:12px;padding:9px;margin:8px 0;font-size:12px}.status-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:9px}.status-actions button{font-size:11px;padding:8px}.danger{background:#fde7e7;color:var(--red);grid-column:1/-1}.mapbtn{background:#eef6ff;color:#1565c0;width:100%;margin-top:6px}input,textarea,select{width:100%;border:1px solid #ddd;border-radius:12px;background:#fff;padding:11px;margin:5px 0 10px;font-size:14px}label{font-size:12px;font-weight:700}.modal{display:none;position:fixed;inset:0;background:#0008;z-index:20;align-items:flex-end}.sheet{background:#f7f7f7;width:100%;max-height:88vh;overflow:auto;border-radius:24px 24px 0 0;padding:18px}.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.hide{display:none}.empty{text-align:center;color:#888;background:#fff;border-radius:16px;padding:28px 12px}</style></head><body><div class="wrap"><div class="top"><h1>🔥 BBQ Burger Admin</h1><div class="sub" id="who">Telegram tekshirilmoqda...</div></div><div class="notice" id="status">Yuklanmoqda...</div><div class="stats" id="stats"></div><div class="tabs"><button class="active" data-tab="orders">Buyurtmalar</button><button data-tab="products">Mahsulotlar</button><button data-tab="categories">Kategoriyalar</button><button data-tab="banners">Bannerlar</button><button data-tab="settings">Sozlamalar</button></div><div id="content"></div></div><div class="modal" id="modal"><div class="sheet"><div id="form"></div></div></div><script>const API='https://tgcmevhuxwzcmeseysax.supabase.co/functions/v1/bbq-admin-api';const tg=window.Telegram?.WebApp;if(tg){tg.ready();tg.expand()}const initData=tg?.initData||'';let D={categories:[],products:[],banners:[],settings:[],orders:[]};let tab='orders',orderFilter='all';const $=s=>document.querySelector(s);const esc=v=>String(v??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));const money=n=>Number(n||0).toLocaleString('ru-RU')+' so‘m';const statusNames={new:'🆕 Yangi',accepted:'✅ Qabul qilindi',preparing:'👨‍🍳 Tayyorlanmoqda',courier:'🛵 Kuryerda',delivered:'✅ Yetkazildi',cancelled:'❌ Bekor qilindi'};async function call(action,extra={}){const r=await fetch(API,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action,initData,...extra})});return r.json()}async function start(){if(!initData){$('#status').textContent='Bu panel faqat Telegram bot ichidan ochiladi.';return}const b=await call('bootstrap');if(!b.ok){$('#status').textContent='Kirish rad etildi: '+b.error;return}$('#who').textContent=(b.user.first_name||'Admin')+' · '+b.roles.join(', ');const s={'Yangi buyurtma':b.counts.newOrders,Kategoriyalar:b.counts.categories,Mahsulotlar:b.counts.products,'Tugagan mahsulot':b.counts.outOfStock};$('#stats').innerHTML=Object.entries(s).map(([k,v])=>`<div class="card"><div class="num">${v}</div><div class="muted">${k}</div></div>`).join('');$('#status').classList.add('hide');await Promise.all([loadCatalog(),loadOrders()]);render()}async function loadCatalog(){const r=await call('list');if(r.ok)Object.assign(D,r)}async function loadOrders(){const r=await call('orders',{status:orderFilter});if(!r.ok){alert(r.error);return}D.orders=r.orders||[]}function render(){if(tab==='orders')return renderOrders();const c=$('#content');if(tab==='products')c.innerHTML=`<div class="toolbar"><b>Mahsulotlar</b><button class="primary" onclick="edit('product')">+ Qo‘shish</button></div>`+D.products.map(x=>`<div class="item"><div><b>${esc(x.name)}</b><br><span class="muted">${money(x.price_uzs)} · ${esc(x.menu_categories?.name||'')} · ${x.is_in_stock?'Mavjud':'Tugagan'}</span></div><div class="actions"><button onclick="edit('product','${x.id}')">✏️</button><button onclick="delx('product','${x.id}')">🗑</button></div></div>`).join('');if(tab==='categories')c.innerHTML=`<div class="toolbar"><b>Kategoriyalar</b><button class="primary" onclick="edit('category')">+ Qo‘shish</button></div>`+D.categories.map(x=>`<div class="item"><div><b>${esc(x.emoji||'')} ${esc(x.name)}</b><br><span class="muted">Tartib: ${x.sort_order} · ${x.is_active?'Faol':'Yopiq'}</span></div><div class="actions"><button onclick="edit('category','${x.id}')">✏️</button><button onclick="delx('category','${x.id}')">🗑</button></div></div>`).join('');if(tab==='banners')c.innerHTML=`<div class="toolbar"><b>Bannerlar</b><button class="primary" onclick="edit('banner')">+ Qo‘shish</button></div>`+D.banners.map(x=>`<div class="item"><div><b>${esc(x.title)}</b><br><span class="muted">${esc(x.subtitle||'')} · ${x.is_active?'Faol':'Yopiq'}</span></div><div class="actions"><button onclick="edit('banner','${x.id}')">✏️</button><button onclick="delx('banner','${x.id}')">🗑</button></div></div>`).join('');if(tab==='settings'){const m={};D.settings.forEach(x=>m[x.key]=x.value);c.innerHTML=`<div class="card"><label>Yetkazib berish narxi</label><input id="fee" type="number" value="${m.delivery_fee_uzs??12000}"><button class="primary" onclick="saveFee()">Saqlash</button></div><div class="card" style="margin-top:10px"><label>Do‘kon holati</label><select id="open"><option value="true" ${m.shop_open===true?'selected':''}>Ochiq</option><option value="false" ${m.shop_open===false?'selected':''}>Yopiq</option></select><button class="primary" onclick="saveOpen()">Saqlash</button></div>`}}function renderOrders(){const c=$('#content');const filters=[['all','Hammasi'],['new','Yangi'],['accepted','Qabul'],['preparing','Tayyor'],['courier','Kuryer'],['delivered','Yetkazildi'],['cancelled','Bekor']];let h=`<div class="toolbar"><b>Buyurtmalar</b><button onclick="refreshOrders()">↻ Yangilash</button></div><div class="filters">${filters.map(([v,n])=>`<button class="${orderFilter===v?'active':''}" onclick="filterOrders('${v}')">${n}</button>`).join('')}</div>`;if(!D.orders.length){c.innerHTML=h+'<div class="empty">Buyurtma topilmadi</div>';return}h+=D.orders.map(o=>{const items=(o.order_items||[]).map(i=>`<div>${esc(i.product_name)} × ${i.quantity} — <b>${money(i.line_total_uzs)}</b></div>`).join('');const map=o.latitude!=null&&o.longitude!=null?`<button class="mapbtn" onclick="openMap(${o.latitude},${o.longitude})">📍 Lokatsiyani ochish</button>`:'';const terminal=o.status==='delivered'||o.status==='cancelled';return `<div class="order"><div class="order-head"><div><b>Buyurtma #${o.order_number}</b><div class="muted">${new Date(o.created_at).toLocaleString()}</div></div><span class="status ${o.status}">${statusNames[o.status]||o.status}</span></div><div class="order-lines">👤 ${esc(o.customer_name||'-')}<br>📞 ${esc(o.phone||'-')}<br>🏠 ${esc(o.address_text||'-')}<br>💰 <b>${money(o.total_uzs)}</b>${o.comment?`<br>💬 ${esc(o.comment)}`:''}</div><div class="order-items">${items}</div>${map}${terminal?'':`<div class="status-actions"><button onclick="setOrderStatus('${o.id}','accepted')">✅ Qabul</button><button onclick="setOrderStatus('${o.id}','preparing')">👨‍🍳 Tayyor</button><button onclick="setOrderStatus('${o.id}','courier')">🛵 Kuryer</button><button onclick="setOrderStatus('${o.id}','delivered')">✅ Yetkazildi</button><button class="danger" onclick="setOrderStatus('${o.id}','cancelled')">❌ Bekor qilish</button></div>`}</div>`}).join('');c.innerHTML=h}async function filterOrders(v){orderFilter=v;await loadOrders();renderOrders()}async function refreshOrders(){await loadOrders();renderOrders()}async function setOrderStatus(id,status){const r=await call('order_status',{orderId:id,status});if(!r.ok){alert(r.error);return}tg?.HapticFeedback?.notificationOccurred('success');await loadOrders();renderOrders()}function openMap(lat,lng){const u=`https://maps.google.com/?q=${lat},${lng}`;tg?.openLink?tg.openLink(u):window.open(u,'_blank')}document.querySelectorAll('.tabs button').forEach(b=>b.onclick=async()=>{document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('active'));b.classList.add('active');tab=b.dataset.tab;if(tab==='orders')await loadOrders();render()});function edit(entity,id){const arr=entity==='product'?D.products:entity==='category'?D.categories:D.banners;const x=id?arr.find(v=>v.id===id)||{}:{};let f='';if(entity==='category')f=`<h3>Kategoriya</h3><label>Nomi</label><input id="name" value="${esc(x.name||'')}"><label>Emoji</label><input id="emoji" value="${esc(x.emoji||'')}"><label>Slug</label><input id="slug" value="${esc(x.slug||'')}"><label>Tartib</label><input id="sort" type="number" value="${x.sort_order||0}"><label>Holati</label><select id="active"><option value="true" ${x.is_active!==false?'selected':''}>Faol</option><option value="false" ${x.is_active===false?'selected':''}>Yopiq</option></select>`;if(entity==='product')f=`<h3>Mahsulot</h3><label>Nomi</label><input id="name" value="${esc(x.name||'')}"><label>Tavsif</label><textarea id="desc">${esc(x.description||'')}</textarea><label>Narx</label><input id="price" type="number" value="${x.price_uzs||0}"><label>Kategoriya</label><select id="cat">${D.categories.map(c=>`<option value="${c.id}" ${x.category_id===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select><label>Rasm URL</label><input id="image" value="${esc(x.image_url||'')}"><label>Badge</label><input id="badge" value="${esc(x.badge||'')}"><div class="row"><div><label>Tartib</label><input id="sort" type="number" value="${x.sort_order||0}"></div><div><label>Mavjud</label><select id="stock"><option value="true" ${x.is_in_stock!==false?'selected':''}>Ha</option><option value="false" ${x.is_in_stock===false?'selected':''}>Yo‘q</option></select></div></div><label>Holati</label><select id="active"><option value="true" ${x.is_active!==false?'selected':''}>Faol</option><option value="false" ${x.is_active===false?'selected':''}>Yopiq</option></select>`;if(entity==='banner')f=`<h3>Banner</h3><label>Sarlavha</label><input id="title" value="${esc(x.title||'')}"><label>Pastki matn</label><input id="subtitle" value="${esc(x.subtitle||'')}"><label>Rasm URL</label><input id="image" value="${esc(x.image_url||'')}"><label>Tugma matni</label><input id="action" value="${esc(x.action_text||'')}"><label>Tartib</label><input id="sort" type="number" value="${x.sort_order||0}"><label>Holati</label><select id="active"><option value="true" ${x.is_active!==false?'selected':''}>Faol</option><option value="false" ${x.is_active===false?'selected':''}>Yopiq</option></select>`;$('#form').innerHTML=f+`<div class="row"><button onclick="closeM()">Bekor</button><button class="primary" onclick="save('${entity}','${id||''}')">Saqlash</button></div>`;$('#modal').style.display='flex'}function closeM(){$('#modal').style.display='none'}async function save(entity,id){const row=id?{id}:{};if(entity==='category')Object.assign(row,{name:$('#name').value,emoji:$('#emoji').value||null,slug:$('#slug').value||$('#name').value.toLowerCase().replace(/\s+/g,'-'),sort_order:+$('#sort').value,is_active:$('#active').value==='true'});if(entity==='product')Object.assign(row,{name:$('#name').value,description:$('#desc').value,price_uzs:+$('#price').value,category_id:$('#cat').value,image_url:$('#image').value||null,badge:$('#badge').value||null,slug:id?(D.products.find(v=>v.id===id)?.slug||('p-'+Date.now())):($('#name').value.toLowerCase().replace(/[^a-z0-9]+/g,'-')||('p-'+Date.now())),sort_order:+$('#sort').value,is_in_stock:$('#stock').value==='true',is_active:$('#active').value==='true'});if(entity==='banner')Object.assign(row,{title:$('#title').value,subtitle:$('#subtitle').value,image_url:$('#image').value||null,action_text:$('#action').value,sort_order:+$('#sort').value,is_active:$('#active').value==='true'});const r=await call('save',{entity,row});if(r.ok){closeM();await loadCatalog();render()}else alert(r.error)}async function delx(entity,id){if(!confirm('O‘chirilsinmi?'))return;const r=await call('delete',{entity,id});if(r.ok){await loadCatalog();render()}else alert(r.error)}async function saveFee(){const r=await call('setting',{key:'delivery_fee_uzs',value:+$('#fee').value});alert(r.ok?'Saqlandi':r.error);if(r.ok)await loadCatalog()}async function saveOpen(){const r=await call('setting',{key:'shop_open',value:$('#open').value==='true'});alert(r.ok?'Saqlandi':r.error);if(r.ok)await loadCatalog()}start();</script></body></html>
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<title>BBQ Burger Admin</title>
+<style>
+:root{--o:#ff6500;--d:#171717;--bg:#f4f4f4;--mut:#777;--red:#c62828;--green:#16813c}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Arial,sans-serif;color:#202020}
+.wrap{max-width:520px;margin:auto;padding:14px 14px 90px}.top{background:var(--d);color:#fff;border-radius:22px;padding:18px}.top h1{font-size:20px;margin:0 0 4px}
+.sub,.muted{font-size:12px;color:var(--mut)}.top .sub{color:#bbb}.notice{margin:12px 0;padding:12px;border-radius:14px;background:#fff3cd}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin:12px 0}.card,.item,.order{background:#fff;border-radius:17px;padding:13px;box-shadow:0 3px 14px #0000000c}
+.num{font-size:23px;font-weight:800}.tabs,.filters{display:flex;gap:7px;overflow:auto;padding:2px 0;margin:12px 0}.tabs button,.filters button{background:#fff;white-space:nowrap}
+.tabs button.active,.filters button.active,.primary{background:var(--o);color:#fff}button{border:0;border-radius:11px;padding:10px 12px;font-weight:700;cursor:pointer}
+.toolbar{display:flex;justify-content:space-between;align-items:center;margin:10px 0}.item{display:flex;justify-content:space-between;gap:8px;margin:8px 0;align-items:center}
+.product-main{display:flex;gap:10px;align-items:center;min-width:0}.thumb{width:58px;height:58px;border-radius:12px;object-fit:cover;background:#f2f2f2;flex:0 0 auto}
+.thumb-empty{width:58px;height:58px;border-radius:12px;background:#f2f2f2;display:flex;align-items:center;justify-content:center;font-size:24px;flex:0 0 auto}
+.actions{display:flex;gap:5px;flex:0 0 auto}.actions button{padding:8px;background:#eee}.order{margin:9px 0}.order-head{display:flex;justify-content:space-between;gap:8px}
+.status{font-size:11px;font-weight:800;border-radius:999px;padding:5px 8px;background:#eee}.status.new{background:#fff1c7}.status.accepted{background:#e5f3ff}
+.status.preparing{background:#fff0df}.status.courier{background:#efe7ff}.status.delivered{background:#e5f6e9;color:var(--green)}.status.cancelled{background:#fde7e7;color:var(--red)}
+.order-lines{margin:9px 0 4px;font-size:13px;line-height:1.55}.order-items{background:#f7f7f7;border-radius:12px;padding:9px;margin:8px 0;font-size:12px}
+.status-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:9px}.status-actions button{font-size:11px;padding:8px}.danger{background:#fde7e7;color:var(--red);grid-column:1/-1}
+.mapbtn{background:#eef6ff;color:#1565c0;width:100%;margin-top:6px}input,textarea,select{width:100%;border:1px solid #ddd;border-radius:12px;background:#fff;padding:11px;margin:5px 0 10px;font-size:14px}
+label{font-size:12px;font-weight:700}.modal{display:none;position:fixed;inset:0;background:#0008;z-index:20;align-items:flex-end}.sheet{background:#f7f7f7;width:100%;max-height:88vh;overflow:auto;border-radius:24px 24px 0 0;padding:18px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.hide{display:none}.empty{text-align:center;color:#888;background:#fff;border-radius:16px;padding:28px 12px}
+.image-box{background:#fff;border:1px solid #e1e1e1;border-radius:16px;padding:10px;margin:5px 0 12px}.image-preview{width:100%;height:190px;object-fit:contain;border-radius:12px;background:#f4f4f4;display:block}
+.image-placeholder{height:190px;border-radius:12px;background:#f4f4f4;display:flex;align-items:center;justify-content:center;color:#999;font-size:13px}.image-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:8px}
+.image-actions button{width:100%}.choose{background:#eaf3ff;color:#145da0}.remove{background:#f7eaea;color:var(--red)}.upload-state{font-size:12px;margin-top:7px;color:#666}.upload-state.ok{color:var(--green)}.upload-state.bad{color:var(--red)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><h1>🔥 BBQ Burger Admin</h1><div class="sub" id="who">Telegram tekshirilmoqda...</div></div>
+  <div class="notice" id="status">Yuklanmoqda...</div>
+  <div class="stats" id="stats"></div>
+  <div class="tabs">
+    <button class="active" data-tab="orders">Buyurtmalar</button>
+    <button data-tab="products">Mahsulotlar</button>
+    <button data-tab="categories">Kategoriyalar</button>
+    <button data-tab="banners">Bannerlar</button>
+    <button data-tab="settings">Sozlamalar</button>
+  </div>
+  <div id="content"></div>
+</div>
+<div class="modal" id="modal"><div class="sheet"><div id="form"></div></div></div>
+
+<script>
+const API='https://tgcmevhuxwzcmeseysax.supabase.co/functions/v1/bbq-admin-api';
+const tg=window.Telegram?.WebApp;if(tg){tg.ready();tg.expand()}
+const initData=tg?.initData||'';
+let D={categories:[],products:[],banners:[],settings:[],orders:[]};
+let tab='orders',orderFilter='all',imageUploading=false;
+const $=s=>document.querySelector(s);
+const esc=v=>String(v??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
+const money=n=>Number(n||0).toLocaleString('ru-RU')+' so‘m';
+const statusNames={new:'🆕 Yangi',accepted:'✅ Qabul qilindi',preparing:'👨‍🍳 Tayyorlanmoqda',courier:'🛵 Kuryerda',delivered:'✅ Yetkazildi',cancelled:'❌ Bekor qilindi'};
+
+async function call(action,extra={}){
+  const r=await fetch(API,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action,initData,...extra})});
+  return r.json();
+}
+async function start(){
+  if(!initData){$('#status').textContent='Bu panel faqat Telegram bot ichidan ochiladi.';return}
+  const b=await call('bootstrap');
+  if(!b.ok){$('#status').textContent='Kirish rad etildi: '+b.error;return}
+  $('#who').textContent=(b.user.first_name||'Admin')+' · '+b.roles.join(', ');
+  const s={'Yangi buyurtma':b.counts.newOrders,Kategoriyalar:b.counts.categories,Mahsulotlar:b.counts.products,'Tugagan mahsulot':b.counts.outOfStock};
+  $('#stats').innerHTML=Object.entries(s).map(([k,v])=>`<div class="card"><div class="num">${v}</div><div class="muted">${k}</div></div>`).join('');
+  $('#status').classList.add('hide');
+  await Promise.all([loadCatalog(),loadOrders()]);
+  render();
+}
+async function loadCatalog(){const r=await call('list');if(r.ok)Object.assign(D,r)}
+async function loadOrders(){const r=await call('orders',{status:orderFilter});if(!r.ok){alert(r.error);return}D.orders=r.orders||[]}
+
+function render(){
+  if(tab==='orders')return renderOrders();
+  const c=$('#content');
+  if(tab==='products'){
+    c.innerHTML=`<div class="toolbar"><b>Mahsulotlar</b><button class="primary" onclick="edit('product')">+ Qo‘shish</button></div>`+
+      D.products.map(x=>`<div class="item"><div class="product-main">${x.image_url?`<img class="thumb" src="${esc(x.image_url)}">`:'<div class="thumb-empty">🍔</div>'}<div><b>${esc(x.name)}</b><br><span class="muted">${money(x.price_uzs)} · ${esc(x.menu_categories?.name||'')} · ${x.is_in_stock?'Mavjud':'Tugagan'}</span></div></div><div class="actions"><button onclick="edit('product','${x.id}')">✏️</button><button onclick="delx('product','${x.id}')">🗑</button></div></div>`).join('');
+  }
+  if(tab==='categories')c.innerHTML=`<div class="toolbar"><b>Kategoriyalar</b><button class="primary" onclick="edit('category')">+ Qo‘shish</button></div>`+
+    D.categories.map(x=>`<div class="item"><div><b>${esc(x.emoji||'')} ${esc(x.name)}</b><br><span class="muted">Tartib: ${x.sort_order} · ${x.is_active?'Faol':'Yopiq'}</span></div><div class="actions"><button onclick="edit('category','${x.id}')">✏️</button><button onclick="delx('category','${x.id}')">🗑</button></div></div>`).join('');
+  if(tab==='banners')c.innerHTML=`<div class="toolbar"><b>Bannerlar</b><button class="primary" onclick="edit('banner')">+ Qo‘shish</button></div>`+
+    D.banners.map(x=>`<div class="item"><div class="product-main">${x.image_url?`<img class="thumb" src="${esc(x.image_url)}">`:'<div class="thumb-empty">🖼️</div>'}<div><b>${esc(x.title)}</b><br><span class="muted">${esc(x.subtitle||'')} · ${x.is_active?'Faol':'Yopiq'}</span></div></div><div class="actions"><button onclick="edit('banner','${x.id}')">✏️</button><button onclick="delx('banner','${x.id}')">🗑</button></div></div>`).join('');
+  if(tab==='settings'){
+    const m={};D.settings.forEach(x=>m[x.key]=x.value);
+    c.innerHTML=`<div class="card"><label>Yetkazib berish narxi</label><input id="fee" type="number" value="${m.delivery_fee_uzs??12000}"><button class="primary" onclick="saveFee()">Saqlash</button></div><div class="card" style="margin-top:10px"><label>Do‘kon holati</label><select id="open"><option value="true" ${m.shop_open===true?'selected':''}>Ochiq</option><option value="false" ${m.shop_open===false?'selected':''}>Yopiq</option></select><button class="primary" onclick="saveOpen()">Saqlash</button></div>`;
+  }
+}
+function renderOrders(){
+  const c=$('#content'),filters=[['all','Hammasi'],['new','Yangi'],['accepted','Qabul'],['preparing','Tayyor'],['courier','Kuryer'],['delivered','Yetkazildi'],['cancelled','Bekor']];
+  let h=`<div class="toolbar"><b>Buyurtmalar</b><button onclick="refreshOrders()">↻ Yangilash</button></div><div class="filters">${filters.map(([v,n])=>`<button class="${orderFilter===v?'active':''}" onclick="filterOrders('${v}')">${n}</button>`).join('')}</div>`;
+  if(!D.orders.length){c.innerHTML=h+'<div class="empty">Buyurtma topilmadi</div>';return}
+  h+=D.orders.map(o=>{
+    const items=(o.order_items||[]).map(i=>`<div>${esc(i.product_name)} × ${i.quantity} — <b>${money(i.line_total_uzs)}</b></div>`).join('');
+    const map=o.latitude!=null&&o.longitude!=null?`<button class="mapbtn" onclick="openMap(${o.latitude},${o.longitude})">📍 Lokatsiyani ochish</button>`:'';
+    let next='';
+    if(o.status==='new')next=`<button onclick="setOrderStatus('${o.id}','accepted')">✅ Qabul</button>`;
+    if(o.status==='accepted')next=`<button onclick="setOrderStatus('${o.id}','preparing')">👨‍🍳 Tayyor</button>`;
+    if(o.status==='preparing')next=`<button onclick="setOrderStatus('${o.id}','courier')">🛵 Kuryer</button>`;
+    if(o.status==='courier')next=`<button onclick="setOrderStatus('${o.id}','delivered')">✅ Yetkazildi</button>`;
+    const terminal=o.status==='delivered'||o.status==='cancelled';
+    const actions=terminal?'':`<div class="status-actions">${next}<button class="danger" onclick="setOrderStatus('${o.id}','cancelled')">❌ Bekor qilish</button></div>`;
+    return `<div class="order"><div class="order-head"><div><b>Buyurtma #${o.order_number}</b><div class="muted">${new Date(o.created_at).toLocaleString()}</div></div><span class="status ${o.status}">${statusNames[o.status]||o.status}</span></div><div class="order-lines">👤 ${esc(o.customer_name||'-')}<br>📞 ${esc(o.phone||'-')}<br>🏠 ${esc(o.address_text||'-')}<br>💰 <b>${money(o.total_uzs)}</b>${o.comment?`<br>💬 ${esc(o.comment)}`:''}</div><div class="order-items">${items}</div>${map}${actions}</div>`;
+  }).join('');
+  c.innerHTML=h;
+}
+async function filterOrders(v){orderFilter=v;await loadOrders();renderOrders()}
+async function refreshOrders(){await loadOrders();renderOrders()}
+async function setOrderStatus(id,status){const r=await call('order_status',{orderId:id,status});if(!r.ok){alert(r.error);return}tg?.HapticFeedback?.notificationOccurred('success');await loadOrders();renderOrders()}
+function openMap(lat,lng){const u=`https://maps.google.com/?q=${lat},${lng}`;tg?.openLink?tg.openLink(u):window.open(u,'_blank')}
+
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=async()=>{
+  document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('active'));b.classList.add('active');tab=b.dataset.tab;if(tab==='orders')await loadOrders();render();
+});
+
+function imageBlock(current,kind){
+  return `<label>Rasm</label><div class="image-box"><div id="previewWrap">${current?`<img id="imagePreview" class="image-preview" src="${esc(current)}">`:'<div class="image-placeholder" id="imagePlaceholder">Rasm tanlanmagan</div>'}</div><input id="image" type="hidden" value="${esc(current||'')}"><input id="imageFile" class="hide" type="file" accept="image/jpeg,image/png,image/webp" onchange="pickImage(this,'${kind}')"><div class="image-actions"><button type="button" class="choose" onclick="$('#imageFile').click()">📷 Galereyadan tanlash</button><button type="button" class="remove" onclick="removeImage()">🗑 Rasmni olib tashlash</button></div><div id="uploadState" class="upload-state">${current?'Hozirgi rasm saqlangan.':'JPG, PNG yoki WebP.'}</div></div>`;
+}
+function edit(entity,id){
+  imageUploading=false;
+  const arr=entity==='product'?D.products:entity==='category'?D.categories:D.banners;
+  const x=id?arr.find(v=>v.id===id)||{}:{};
+  let f='';
+  if(entity==='category')f=`<h3>Kategoriya</h3><label>Nomi</label><input id="name" value="${esc(x.name||'')}"><label>Emoji</label><input id="emoji" value="${esc(x.emoji||'')}"><label>Slug</label><input id="slug" value="${esc(x.slug||'')}"><label>Tartib</label><input id="sort" type="number" value="${x.sort_order||0}"><label>Holati</label><select id="active"><option value="true" ${x.is_active!==false?'selected':''}>Faol</option><option value="false" ${x.is_active===false?'selected':''}>Yopiq</option></select>`;
+  if(entity==='product')f=`<h3>Mahsulot</h3><label>Nomi</label><input id="name" value="${esc(x.name||'')}"><label>Tavsif</label><textarea id="desc">${esc(x.description||'')}</textarea><label>Narx</label><input id="price" type="number" value="${x.price_uzs||0}"><label>Kategoriya</label><select id="cat">${D.categories.map(c=>`<option value="${c.id}" ${x.category_id===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select>${imageBlock(x.image_url,'product')}<label>Badge</label><input id="badge" value="${esc(x.badge||'')}"><div class="row"><div><label>Tartib</label><input id="sort" type="number" value="${x.sort_order||0}"></div><div><label>Mavjud</label><select id="stock"><option value="true" ${x.is_in_stock!==false?'selected':''}>Ha</option><option value="false" ${x.is_in_stock===false?'selected':''}>Yo‘q</option></select></div></div><label>Holati</label><select id="active"><option value="true" ${x.is_active!==false?'selected':''}>Faol</option><option value="false" ${x.is_active===false?'selected':''}>Yopiq</option></select>`;
+  if(entity==='banner')f=`<h3>Banner</h3><label>Sarlavha</label><input id="title" value="${esc(x.title||'')}"><label>Pastki matn</label><input id="subtitle" value="${esc(x.subtitle||'')}">${imageBlock(x.image_url,'banner')}<label>Tugma matni</label><input id="action" value="${esc(x.action_text||'')}"><label>Tartib</label><input id="sort" type="number" value="${x.sort_order||0}"><label>Holati</label><select id="active"><option value="true" ${x.is_active!==false?'selected':''}>Faol</option><option value="false" ${x.is_active===false?'selected':''}>Yopiq</option></select>`;
+  $('#form').innerHTML=f+`<div class="row"><button onclick="closeM()">Bekor</button><button class="primary" onclick="save('${entity}','${id||''}')">Saqlash</button></div>`;
+  $('#modal').style.display='flex';
+}
+function closeM(){if(imageUploading){alert('Rasm yuklanmoqda. Biroz kuting.');return}$('#modal').style.display='none'}
+function removeImage(){if(imageUploading)return;$('#image').value='';$('#previewWrap').innerHTML='<div class="image-placeholder" id="imagePlaceholder">Rasm tanlanmagan</div>';$('#uploadState').textContent='Rasm olib tashlandi. Saqlashni bosing.'}
+
+async function compressImage(file){
+  if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw new Error('Faqat JPG, PNG yoki WebP rasm tanlang.');
+  if(file.size>15*1024*1024)throw new Error('Rasm juda katta. 15 MB dan kichik rasm tanlang.');
+  const data=await new Promise((resolve,reject)=>{const fr=new FileReader();fr.onload=()=>resolve(fr.result);fr.onerror=reject;fr.readAsDataURL(file)});
+  const img=await new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=()=>reject(new Error('Rasmni o‘qib bo‘lmadi'));im.src=data});
+  const max=1400,scale=Math.min(1,max/Math.max(img.width,img.height)),w=Math.max(1,Math.round(img.width*scale)),h=Math.max(1,Math.round(img.height*scale));
+  const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;const ctx=canvas.getContext('2d');ctx.drawImage(img,0,0,w,h);
+  let blob=await new Promise(r=>canvas.toBlob(r,'image/webp',0.86));
+  if(!blob)blob=await new Promise(r=>canvas.toBlob(r,'image/jpeg',0.86));
+  if(!blob)throw new Error('Rasmni tayyorlab bo‘lmadi');
+  const b64=await new Promise((resolve,reject)=>{const fr=new FileReader();fr.onload=()=>resolve(fr.result);fr.onerror=reject;fr.readAsDataURL(blob)});
+  return {base64:b64,mime:blob.type};
+}
+async function pickImage(input,kind){
+  const file=input.files?.[0];if(!file)return;
+  imageUploading=true;const st=$('#uploadState');st.className='upload-state';st.textContent='⏳ Rasm tayyorlanmoqda...';
+  try{
+    const local=URL.createObjectURL(file);$('#previewWrap').innerHTML=`<img id="imagePreview" class="image-preview" src="${local}">`;
+    const packed=await compressImage(file);st.textContent='⏳ Serverga yuklanmoqda...';
+    const r=await call('upload_image',{kind,mime:packed.mime,base64:packed.base64});
+    if(!r.ok)throw new Error(r.error||'upload_failed');
+    $('#image').value=r.url;$('#imagePreview').src=r.url;st.className='upload-state ok';st.textContent='✅ Rasm yuklandi. Endi Saqlashni bosing.';tg?.HapticFeedback?.notificationOccurred('success');
+  }catch(e){st.className='upload-state bad';st.textContent='❌ '+(e?.message||e);alert(e?.message||e)}
+  finally{imageUploading=false;input.value=''}
+}
+
+async function save(entity,id){
+  if(imageUploading){alert('Rasm hali yuklanmoqda. Biroz kuting.');return}
+  const row=id?{id}:{};
+  if(entity==='category')Object.assign(row,{name:$('#name').value,emoji:$('#emoji').value||null,slug:$('#slug').value||$('#name').value.toLowerCase().replace(/\s+/g,'-'),sort_order:+$('#sort').value,is_active:$('#active').value==='true'});
+  if(entity==='product')Object.assign(row,{name:$('#name').value,description:$('#desc').value,price_uzs:+$('#price').value,category_id:$('#cat').value,image_url:$('#image').value||null,badge:$('#badge').value||null,slug:id?(D.products.find(v=>v.id===id)?.slug||('p-'+Date.now())):($('#name').value.toLowerCase().replace(/[^a-z0-9]+/g,'-')||('p-'+Date.now())),sort_order:+$('#sort').value,is_in_stock:$('#stock').value==='true',is_active:$('#active').value==='true'});
+  if(entity==='banner')Object.assign(row,{title:$('#title').value,subtitle:$('#subtitle').value,image_url:$('#image').value||null,action_text:$('#action').value,sort_order:+$('#sort').value,is_active:$('#active').value==='true'});
+  const r=await call('save',{entity,row});if(r.ok){$('#modal').style.display='none';await loadCatalog();render()}else alert(r.error);
+}
+async function delx(entity,id){if(!confirm('O‘chirilsinmi?'))return;const r=await call('delete',{entity,id});if(r.ok){await loadCatalog();render()}else alert(r.error)}
+async function saveFee(){const r=await call('setting',{key:'delivery_fee_uzs',value:+$('#fee').value});alert(r.ok?'Saqlandi':r.error);if(r.ok)await loadCatalog()}
+async function saveOpen(){const r=await call('setting',{key:'shop_open',value:$('#open').value==='true'});alert(r.ok?'Saqlandi':r.error);if(r.ok)await loadCatalog()}
+start();
+</script>
+</body>
+</html>
