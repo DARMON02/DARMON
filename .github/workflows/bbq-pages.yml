@@ -37,6 +37,9 @@ jobs:
           mkdir -p _site/admin
           cp -a bbq-burger-customer/. _site/
           cp -a bbq-burger-admin/. _site/admin/
+          if ! grep -q 'settings-addon.js' _site/admin/index.html; then
+            sed -i 's#</body>#<script src="settings-addon.js"></script></body>#' _site/admin/index.html
+          fi
       - name: Upload Mini Apps artifact
         uses: actions/upload-pages-artifact@v4
         with:
