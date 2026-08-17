@@ -1,9 +1,10 @@
-name: Deploy BBQ Burger Admin to GitHub Pages
+name: Deploy BBQ Burger Mini Apps to GitHub Pages
 
 on:
   push:
     branches: ["main"]
     paths:
+      - "bbq-burger-customer/**"
       - "bbq-burger-admin/**"
       - ".github/workflows/bbq-pages.yml"
   workflow_dispatch:
@@ -30,10 +31,16 @@ jobs:
         uses: actions/configure-pages@v5
         with:
           enablement: true
-      - name: Upload BBQ admin artifact
+      - name: Build static site
+        run: |
+          rm -rf _site
+          mkdir -p _site/admin
+          cp bbq-burger-customer/index.html _site/index.html
+          cp bbq-burger-admin/index.html _site/admin/index.html
+      - name: Upload Mini Apps artifact
         uses: actions/upload-pages-artifact@v4
         with:
-          path: ./bbq-burger-admin
+          path: ./_site
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
