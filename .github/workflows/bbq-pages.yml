@@ -49,6 +49,9 @@ jobs:
           if ! grep -q 'admin-users-addon.js' _site/admin/index.html; then
             sed -i 's#</body>#<script src="admin-users-addon.js?v=1"></script></body>#' _site/admin/index.html
           fi
+          if ! grep -q 'analytics-addon.js' _site/admin/index.html; then
+            sed -i 's#</body>#<script src="analytics-addon.js?v=1"></script></body>#' _site/admin/index.html
+          fi
       - name: Upload Mini Apps artifact
         uses: actions/upload-pages-artifact@v4
         with:
