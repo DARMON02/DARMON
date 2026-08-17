@@ -43,6 +43,9 @@ jobs:
           if ! grep -q 'cancel-addon.js' _site/admin/index.html; then
             sed -i 's#</body>#<script src="cancel-addon.js?v=1"></script></body>#' _site/admin/index.html
           fi
+          if ! grep -q 'promo-addon.js' _site/admin/index.html; then
+            sed -i 's#</body>#<script src="promo-addon.js?v=1"></script></body>#' _site/admin/index.html
+          fi
       - name: Upload Mini Apps artifact
         uses: actions/upload-pages-artifact@v4
         with:
